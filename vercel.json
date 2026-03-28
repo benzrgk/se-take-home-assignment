@@ -1,4 +1,6 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "outputDirectory": "frontend",
   "cleanUrls": true,
   "headers": [
     {
@@ -9,24 +11,6 @@
           "value": "no-store"
         }
       ]
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/",
-      "destination": "/frontend/index.html"
-    },
-    {
-      "source": "/app.js",
-      "destination": "/frontend/app.js"
-    },
-    {
-      "source": "/config.js",
-      "destination": "/frontend/config.js"
-    },
-    {
-      "source": "/styles.css",
-      "destination": "/frontend/styles.css"
     }
   ]
 }
