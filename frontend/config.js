@@ -1,4 +1,4 @@
 window.FEEDME_CONFIG = {
-  apiBaseUrl: "",
+  apiBaseUrl: "https://se-take-home-assignment-1.onrender.com",
   ...(window.FEEDME_CONFIG || {}),
 };
