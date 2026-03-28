@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>FeedMe Kitchen Controller</title>
+    <meta
+      name="description"
+      content="McDonald's order controller prototype built with Vue.js and a Node.js backend."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./config.js"></script>
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <div id="app" v-cloak>
+      <main class="shell">
+        <section class="hero">
+          <div class="hero-copy">
+            <p class="eyebrow">FeedMe Order Controller</p>
+            <h1>Keep VIP priority sharp and the bot kitchen moving.</h1>
+            <p class="hero-text">
+              Create orders, scale cooking bots in real time, and watch the pending,
+              processing, and complete lanes update live from the Node backend.
+            </p>
+          </div>
+
+          <div class="hero-panel">
+            <div class="connection-chip" :data-status="connection.status">
+              <span class="dot"></span>
+              <span>{{ connection.label }}</span>
+            </div>
+
+            <label class="api-field">
+              <span>Backend API</span>
+              <div class="api-input-row">
+                <input
+                  v-model="draftApiBase"
+                  type="text"
+                  inputmode="url"
+                  placeholder="https://your-render-service.onrender.com"
+                />
+                <button class="ghost-button" @click="saveApiBase">Connect</button>
+              </div>
+            </label>
+
+            <p class="helper-text">
+              Current target:
+              <strong>{{ resolvedApiBase || "same origin" }}</strong>
+            </p>
+          </div>
+        </section>
+
+        <section class="summary-grid">
+          <article class="summary-card">
+            <span class="summary-label">Pending Orders</span>
+            <strong class="summary-value">{{ state.summary.pendingCount }}</strong>
+            <span class="summary-note">VIP orders stay in front of normal orders.</span>
+          </article>
+          <article class="summary-card">
+            <span class="summary-label">Cooking Now</span>
+            <strong class="summary-value">{{ state.summary.processingCount }}</strong>
+            <span class="summary-note">Each bot can handle one order for 10 seconds.</span>
+          </article>
+          <article class="summary-card">
+            <span class="summary-label">Complete Orders</span>
+            <strong class="summary-value">{{ state.summary.completeCount }}</strong>
+            <span class="summary-note">Completion time is stamped by the backend.</span>
+          </article>
+          <article class="summary-card">
+            <span class="summary-label">Active Bots</span>
+            <strong class="summary-value">{{ state.summary.botCount }}</strong>
+            <span class="summary-note">{{ state.summary.idleBotCount }} idle and ready.</span>
+          </article>
+        </section>
+
+        <section class="command-card">
+          <div class="command-copy">
+            <p class="eyebrow">Kitchen Controls</p>
+            <h2>Drive the queue from one panel.</h2>
+            <p>
+              The dashboard stays synced through server-sent events. If the live stream drops,
+              the app falls back to polling until it reconnects.
+            </p>
+          </div>
+
+          <div class="command-groups">
+            <div class="button-group">
+              <button
+                class="action-button normal"
+                :disabled="isActionBusy('normal')"
+                @click="createOrder('normal')"
+              >
+                New Normal Order
+              </button>
+              <button
+                class="action-button vip"
+                :disabled="isActionBusy('vip')"
+                @click="createOrder('vip')"
+              >
+                New VIP Order
+              </button>
+            </div>
+
+            <div class="button-group">
+              <button
+                class="action-button bot"
+                :disabled="isActionBusy('add-bot')"
+                @click="changeBotCount('increase')"
+              >
+                + Bot
+              </button>
+              <button
+                class="action-button bot ghost"
+                :disabled="isActionBusy('remove-bot') || !state.summary.botCount"
+                @click="changeBotCount('decrease')"
+              >
+                - Bot
+              </button>
+            </div>
+
+            <div class="button-group compact">
+              <button
+                class="ghost-button"
+                :disabled="isActionBusy('refresh')"
+                @click="refreshState"
+              >
+                Refresh Snapshot
+              </button>
+              <button
+                class="ghost-button danger"
+                :disabled="isActionBusy('reset')"
+                @click="resetState"
+              >
+                Reset Demo
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <p v-if="errorMessage" class="error-banner">{{ errorMessage }}</p>
+
+        <section class="dashboard-grid">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Queue</p>
+                <h3>Pending Orders</h3>
+              </div>
+              <span class="pill">{{ state.orders.pending.length }}</span>
+            </div>
+
+            <div v-if="state.orders.pending.length" class="stack">
+              <article
+                v-for="order in state.orders.pending"
+                :key="order.id"
+                class="queue-card"
+                :class="order.type.toLowerCase()"
+              >
+                <div class="queue-top">
+                  <div>
+                    <span class="ticket-id">{{ order.displayId }}</span>
+                    <h4>{{ order.type }} Order</h4>
+                  </div>
+                  <span class="priority-tag">{{ order.type }}</span>
+                </div>
+                <p class="meta-line">Queue position {{ order.queuePosition }} · created {{ order.createdAtText }}</p>
+              </article>
+            </div>
+
+            <div v-else class="empty-state">
+              <strong>No pending work</strong>
+              <span>Create a new order to populate the queue.</span>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Bots</p>
+                <h3>Cooking Bots</h3>
+              </div>
+              <span class="pill">{{ state.bots.length }}</span>
+            </div>
+
+            <div v-if="state.bots.length" class="stack">
+              <article
+                v-for="bot in state.bots"
+                :key="bot.id"
+                class="bot-card"
+                :class="bot.status.toLowerCase()"
+              >
+                <div class="queue-top">
+                  <div>
+                    <span class="ticket-id">BOT {{ bot.id }}</span>
+                    <h4>{{ bot.status }}</h4>
+                  </div>
+                  <span class="priority-tag neutral">{{ bot.currentOrderDisplayId || "STANDBY" }}</span>
+                </div>
+
+                <template v-if="bot.currentOrderId">
+                  <p class="meta-line">
+                    Working on {{ bot.currentOrderType }} {{ bot.currentOrderDisplayId }}
+                  </p>
+                  <div class="progress-shell">
+                    <div
+                      class="progress-bar"
+                      :style="{ width: `${progressPercent(bot)}%` }"
+                    ></div>
+                  </div>
+                  <p class="meta-line">
+                    {{ remainingSeconds(bot) }}s left · due {{ bot.completionDueAtText }}
+                  </p>
+                </template>
+
+                <p v-else class="meta-line">Ready to pick up the next order immediately.</p>
+              </article>
+            </div>
+
+            <div v-else class="empty-state">
+              <strong>No active bots</strong>
+              <span>Add a bot to start processing pending orders.</span>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">History</p>
+                <h3>Completed Orders</h3>
+              </div>
+              <span class="pill">{{ state.orders.complete.length }}</span>
+            </div>
+
+            <div v-if="state.orders.complete.length" class="stack">
+              <article
+                v-for="order in completedOrders"
+                :key="order.id"
+                class="complete-card"
+              >
+                <div class="queue-top">
+                  <div>
+                    <span class="ticket-id">{{ order.displayId }}</span>
+                    <h4>{{ order.type }} Order</h4>
+                  </div>
+                  <span class="priority-tag done">DONE</span>
+                </div>
+                <p class="meta-line">
+                  Finished at {{ order.completedAtText }} by Bot {{ order.assignedBotId }}
+                </p>
+              </article>
+            </div>
+
+            <div v-else class="empty-state">
+              <strong>No completed orders yet</strong>
+              <span>Orders move here after their 10-second cook time.</span>
+            </div>
+          </article>
+        </section>
+
+        <section class="activity-panel panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Trace</p>
+              <h3>Backend Activity</h3>
+            </div>
+            <span class="pill">{{ state.activity.length }}</span>
+          </div>
+
+          <div v-if="state.activity.length" class="activity-list">
+            <article
+              v-for="event in state.activity"
+              :key="event.id"
+              class="activity-row"
+            >
+              <span class="activity-time">{{ event.timestampText }}</span>
+              <span class="activity-text">{{ event.message }}</span>
+            </article>
+          </div>
+
+          <div v-else class="empty-state">
+            <strong>No activity yet</strong>
+            <span>Actions and completions will appear here.</span>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
