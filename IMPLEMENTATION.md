@@ -121,7 +121,9 @@ After deployment, either:
 
 Deploy `backend/` as a Node web service.
 
-- Root directory: `se-take-home-assignment/backend`
+- Service type: `Web Service`
+- Environment: `Node`
+- Root directory: `backend`
 - Build command: leave empty
 - Start command: `node server.js`
 

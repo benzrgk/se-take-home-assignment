@@ -2,7 +2,7 @@ services:
   - type: web
     name: feedme-order-controller-backend
     env: node
-    rootDir: se-take-home-assignment/backend
+    rootDir: backend
     buildCommand: ""
     startCommand: node server.js
     healthCheckPath: /health
